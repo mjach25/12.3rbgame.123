@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3rbgame — Ultimate Admin Panel</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Orbitron:wght@800;900&display=swap" rel="stylesheet">
+    <style>
+        :root { --bg:#07070f; --bg2:#0f0f1a; --card:#161625; --primary:#8b5cf6; --cyan:#06b6d4; --red:#ef4444; --border:rgba(255,255,255,.08); --muted:#8a8a9a; }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family:'Inter',sans-serif; background:var(--bg); color:#fff; }
+        
+        #login-overlay { position:fixed; inset:0; background:var(--bg); display:flex; align-items:center; justify-content:center; z-index:9999; }
+        .login-box { background:var(--bg2); padding:40px; border-radius:20px; border:1px solid var(--border); width:350px; text-align:center; box-shadow:0 20px 40px rgba(0,0,0,.5); }
+        .login-box h2 { font-family:'Orbitron',sans-serif; margin-bottom:20px; color:var(--primary); }
+        .login-box input { width:100%; padding:12px; margin-bottom:15px; background:rgba(255,255,255,.05); border:1px solid var(--border); border-radius:8px; color:#fff; text-align:center; }
+        .login-box button { width:100%; padding:12px; background:var(--primary); border:none; border-radius:8px; color:#fff; font-weight:bold; cursor:pointer; }
+        
+        .admin-layout { display:flex; height:100vh; }
+        .sidebar { width:280px; background:var(--bg2); border-right:1px solid var(--border); padding:20px; overflow-y:auto; }
+        .logo { font-family:'Orbitron',sans-serif; font-size:20px; display:flex; align-items:center; gap:10px; margin-bottom:30px; color:var(--primary); }
+        .nav-item { padding:12px; margin-bottom:5px; border-radius:8px; cursor:pointer; transition:.3s; display:flex; align-items:center; gap:10px; color:var(--muted); font-size:14px; }
+        .nav-item i { width:20px; text-align:center; }
+        .nav-item.active, .nav-item:hover { background:rgba(139,92,246,0.1); color:var(--primary); border-left:3px solid var(--primary); }
+        
+        .sidebar-section { margin:20px 0 10px; font-size:11px; color:var(--muted); font-weight:800; text-transform:uppercase; letter-spacing:1px; }
+        
+        .content { flex:1; padding:40px; overflow-y:auto; }
+        h1 { margin-bottom:20px; font-weight:800; font-family:'Orbitron',sans-serif; font-size:24px; text-transform:uppercase; color:var(--cyan); }
+        
+        .form-card { background:var(--card); padding:30px; border-radius:16px; border:1px solid var(--border); margin-bottom:40px; }
+        .form-grid { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+        .form-group { display:flex; flex-direction:column; gap:8px; }
+        .form-group.full { grid-column:1 / -1; }
+        label { font-size:11px; color:var(--muted); font-weight:700; text-transform:uppercase; }
+        input, textarea, select { padding:12px; background:rgba(255,255,255,.03); border:1px solid var(--border); border-radius:8px; color:#fff; font-family:'Inter',sans-serif; }
+        textarea { resize:vertical; min-height:100px; }
+        
+        /* Genres Grid */
+        .checkbox-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(130px, 1fr)); gap:10px; margin-top:5px; }
+        .cb-label { display:flex; align-items:center; gap:8px; font-size:12px; color:var(--muted); cursor:pointer; text-transform:none; }
+        .cb-label input { width:16px; height:16px; accent-color:var(--primary); margin:0; }
+
+        .btn { padding:14px 28px; background:var(--primary); border:none; border-radius:8px; color:#fff; font-weight:bold; cursor:pointer; display:flex; align-items:center; gap:8px; transition:.3s; }
+        .btn:hover { transform:translateY(-2px); }
+        .btn.big-btn { width:100%; justify-content:center; padding:30px; font-size:20px; background:var(--primary); margin-top:20px; }
+        
+        .table-wrap { background:var(--card); border-radius:16px; border:1px solid var(--border); overflow:hidden; }
+        table { width:100%; border-collapse:collapse; }
+        th, td { padding:15px; text-align:left; border-bottom:1px solid var(--border); font-size:14px; }
+        th { background:rgba(255,255,255,.02); color:var(--muted); font-weight:600; text-transform:uppercase; font-size:11px; }
+        .item-img { width:45px; height:45px; object-fit:cover; border-radius:8px; }
+        .actions { display:flex; gap:10px; }
+        .act-btn { border:none; padding:8px; border-radius:6px; cursor:pointer; transition:.2s; }
+        .edit-btn { background:rgba(6,182,212,.1); color:var(--cyan); }
+        .del-btn { background:rgba(239,68,68,.1); color:var(--red); }
+        
+        ::-webkit-scrollbar { width:6px; }
+        ::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.1); border-radius:10px; }
+    </style>
+</head>
+<body>
+
+<div id="login-overlay">
+    <div class="login-box">
+        <h2><i class="fas fa-lock"></i> SECURE LOGIN</h2>
+        <input type="password" id="admin-pass" placeholder="Enter Admin Password">
+        <button onclick="checkPass()">LOGIN ACCESS</button>
+    </div>
+</div>
+
+<div class="admin-layout" style="display:none;" id="admin-main">
+    <div class="sidebar">
+        <div class="logo"><i class="fas fa-shield-halved"></i> 3RBGAME ADMIN</div>
+        
+        <div class="sidebar-section">Management</div>
+        <div class="nav-item" id="nav-free-games" onclick="setTab('free-games')"><i class="fas fa-gamepad"></i> Manage Free Games</div>
+        <div class="nav-item" id="nav-android" onclick="setTab('android')"><i class="fab fa-android"></i> Manage Android Apps</div>
+        <div class="nav-item" id="nav-premium" onclick="setTab('premium')"><i class="fas fa-crown"></i> Manage Premium</div>
+        <div class="nav-item active" id="nav-accounts" onclick="setTab('accounts')"><i class="fas fa-users"></i> All Bot Accounts</div>
+        
+        <div style="margin-top:auto; padding-top:20px; border-top:1px solid var(--border);">
+            <div class="nav-item" onclick="window.open('/', '_blank')"><i class="fas fa-external-link-alt"></i> View Website</div>
+        </div>
+    </div>
+    
+    <div class="content">
+        <!-- COMPLEX GAMES TAB (FREE / STEAM) -->
+        <div id="tab-complex-games" class="tab-content" style="display:none;">
+            <h1 id="game-tab-title">Add New Game</h1>
+            <div class="form-card">
+                <form id="game-form" onsubmit="saveGame(event)">
+                    <input type="hidden" id="g-id">
+                    <div class="form-grid">
+                        <div class="form-group full"><label>GAME TITLE</label><input type="text" id="g-title" placeholder="e.g. Apex Legends" required></div>
+                        <div class="form-group full">
+                            <label>GENRES</label>
+                            <div class="checkbox-grid" id="g-genre-grid">
+                                <label class="cb-label"><input type="checkbox" value="Action"> Action</label>
+                                <label class="cb-label"><input type="checkbox" value="RPG"> RPG</label>
+                                <label class="cb-label"><input type="checkbox" value="Battle Royale"> Battle Royale</label>
+                                <label class="cb-label"><input type="checkbox" value="MOBA"> MOBA</label>
+                                <label class="cb-label"><input type="checkbox" value="Shooting"> Shooting</label>
+                                <label class="cb-label"><input type="checkbox" value="Sports"> Sports</label>
+                                <label class="cb-label"><input type="checkbox" value="Racing"> Racing</label>
+                                <label class="cb-label"><input type="checkbox" value="Casual"> Casual</label>
+                                <label class="cb-label"><input type="checkbox" value="Fighting"> Fighting</label>
+                                <label class="cb-label"><input type="checkbox" value="Sci-Fi"> Sci-Fi</label>
+                                <label class="cb-label"><input type="checkbox" value="MMORPG"> MMORPG</label>
+                                <label class="cb-label"><input type="checkbox" value="Strategy"> Strategy</label>
+                                <label class="cb-label"><input type="checkbox" value="Simulation"> Simulation</label>
+                                <label class="cb-label"><input type="checkbox" value="Online"> Online</label>
+                            </div>
+                        </div>
+                        <div class="form-group"><label>RELEASE YEAR</label><input type="number" id="g-year" value="2024"></div>
+                        <div class="form-group"><label>RATING (E.G. 4.5)</label><input type="number" step="0.1" id="g-rating" value="4.0"></div>
+                        <div class="form-group full"><label>DOWNLOADS (E.G. 1.2M)</label><input type="text" id="g-dl" value="0.1M"></div>
+                        <div class="form-group full"><label>IMAGE URL (THUMBNAIL)</label><input type="text" id="g-img" placeholder="https://..."></div>
+                        <div class="form-group full"><label>HERO IMAGE URL 1 (MAIN BACKGROUND)</label><input type="text" id="g-hero" required></div>
+                        <div class="form-group full"><label>HERO IMAGE URL 2 (OPTIONAL)</label><input type="text" id="g-hero2"></div>
+                        <div class="form-group full"><label>HERO IMAGE URL 3 (OPTIONAL)</label><input type="text" id="g-hero3"></div>
+                        <div class="form-group full"><label>PLAY / DOWNLOAD LINK</label><input type="text" id="g-link"></div>
+                        <div class="form-group full"><label>DESCRIPTION</label><textarea id="g-desc"></textarea></div>
+                    </div>
+                    
+                    <h1 style="margin-top:30px; font-size:18px;">System Requirements (Optional)</h1>
+                    <div class="form-grid">
+                        <div class="form-group"><label>OS</label><input type="text" id="r-os" placeholder="Windows 10"></div>
+                        <div class="form-group"><label>PROCESSOR</label><input type="text" id="r-cpu" placeholder="Core i5"></div>
+                        <div class="form-group"><label>MEMORY</label><input type="text" id="r-ram" placeholder="8 GB"></div>
+                        <div class="form-group"><label>GPU</label><input type="text" id="r-gpu" placeholder="GTX 1060"></div>
+                        <div class="form-group"><label>STORAGE</label><input type="text" id="r-str" placeholder="50 GB"></div>
+                        <div class="form-group" style="justify-content: flex-end;">
+                            <button type="submit" id="g-submit-btn" class="btn big-btn">+ Add Game</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            
+            <h1>Games Database</h1>
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>ID</th><th>Image</th><th>Title</th><th>Year</th><th>Actions</th></tr></thead>
+                    <tbody id="games-table"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- ANDROID APPS TAB -->
+        <div id="tab-android" class="tab-content" style="display:none;">
+            <h1 id="android-tab-title">Add New Android App</h1>
+            <div class="form-card">
+                <form id="android-form" onsubmit="saveAndroidApp(event)">
+                    <input type="hidden" id="an-id">
+                    <div class="form-grid">
+                        <div class="form-group full"><label>APP NAME</label><input type="text" id="an-title" placeholder="e.g. WhatsApp Plus" required></div>
+                        <div class="form-group full"><label>IMAGE URL (THUMBNAIL)</label><input type="text" id="an-img" placeholder="https://..."></div>
+                        <div class="form-group full"><label>HERO IMAGE URL 1</label><input type="text" id="an-hero" required></div>
+                        <div class="form-group full"><label>HERO IMAGE URL 2 (OPTIONAL)</label><input type="text" id="an-hero2"></div>
+                        <div class="form-group full"><label>DOWNLOAD LINK</label><input type="text" id="an-link"></div>
+                        <div class="form-group full"><label>DESCRIPTION</label><textarea id="an-desc"></textarea></div>
+                        <div class="form-group full" style="justify-content: flex-end;">
+                            <button type="submit" id="an-submit-btn" class="btn big-btn">+ Add Android App</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            
+            <h1>Android Apps Database</h1>
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>ID</th><th>Image</th><th>Name</th><th>Actions</th></tr></thead>
+                    <tbody id="android-table"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- PREMIUM ACCOUNTS TAB -->
+        <div id="tab-premium" class="tab-content" style="display:none;">
+            <h1 id="premium-tab-title">Add Premium Account</h1>
+            <div class="form-card">
+                <form id="premium-form" onsubmit="savePremium(event)">
+                    <input type="hidden" id="p-id">
+                    <div class="form-grid">
+                        <div class="form-group"><label>CATEGORY</label>
+                            <select id="p-category" required>
+                                <option value="rdp">RDP Access</option>
+                                <option value="gift">Gift / Rewards</option>
+                                <option value="vpn">VPN Services</option>
+                                <option value="iptv">IPTV Accounts</option>
+                                <option value="netflix">Netflix</option>
+                                <option value="spotify">Spotify</option>
+                                <option value="crunchyroll">Crunchyroll</option>
+                                <option value="canva">Canva Pro</option>
+                            </select>
+                        </div>
+                        <div class="form-group"><label>NAME / TITLE</label><input type="text" id="p-title" placeholder="e.g. Netflix 4K UHD" required></div>
+                        <div class="form-group full"><label>IMAGE URL (THUMBNAIL)</label><input type="text" id="p-img" placeholder="https://..."></div>
+                        <div class="form-group full"><label>HERO IMAGE URL 1</label><input type="text" id="p-hero" required></div>
+                        <div class="form-group"><label>USER / EMAIL</label><input type="text" id="p-user" placeholder="email@example.com"></div>
+                        <div class="form-group"><label>PASSWORD</label><input type="text" id="p-pass" placeholder="Password123"></div>
+                        <div class="form-group full"><label>DESCRIPTION</label><textarea id="p-desc" placeholder="Details about this premium item..."></textarea></div>
+                        <div class="form-group full" style="justify-content: flex-end;">
+                            <button type="submit" id="p-submit-btn" class="btn big-btn">+ Add Premium Account</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            
+            <h1>Premium Database</h1>
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>Image</th><th>Category</th><th>Name</th><th>User</th><th>Actions</th></tr></thead>
+                    <tbody id="premium-table"></tbody>
+                </table>
+            </div>
+        </div>
+        <div id="tab-accounts" class="tab-content">
+            <h1 id="acc-tab-title">Bot Chat Accounts</h1>
+            <div class="form-card">
+                <form id="acc-form" onsubmit="saveAccount(event)">
+                    <input type="hidden" id="a-id">
+                    <div class="form-grid">
+                        <div class="form-group full"><label>IMAGE URL</label><input type="text" id="a-img" required></div>
+                        <div class="form-group full"><label>NAME / TITLE</label><input type="text" id="a-name" required></div>
+                        <div class="form-group"><label>USERNAME</label><input type="text" id="a-user" required></div>
+                        <div class="form-group"><label>PASSWORD</label><input type="text" id="a-pass" required></div>
+                    </div>
+                    <button type="submit" id="a-submit-btn" class="btn" style="margin-top:20px;"><i class="fas fa-plus"></i> SAVE ACCOUNT</button>
+                </form>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>Image</th><th>Name</th><th>User</th><th>Pass</th><th>Actions</th></tr></thead>
+                    <tbody id="acc-table"></tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+const CATEGORIES = [
+    { id: 'free-games', label: 'Free Games', icon: 'fas fa-gamepad' },
+    { id: 'steam-games', label: 'Steam Games', icon: 'fab fa-steam' },
+    { id: 'android-app', label: 'Android App', icon: 'fab fa-android' },
+    { id: 'premium-access', label: 'Premium Access', icon: 'fas fa-crown' },
+    { id: 'rdp', label: 'RDP Access', icon: 'fas fa-desktop' },
+    { id: 'gift', label: 'Gift / Rewards', icon: 'fas fa-gift' },
+    { id: 'vpn', label: 'VPN Services', icon: 'fas fa-shield-alt' },
+    { id: 'iptv', label: 'IPTV Accounts', icon: 'fas fa-tv' },
+    { id: 'netflix', label: 'Netflix', icon: 'fas fa-play' },
+    { id: 'spotify', label: 'Spotify', icon: 'fab fa-spotify' },
+    { id: 'crunchyroll', label: 'Crunchyroll', icon: 'fas fa-film' },
+    { id: 'canva', label: 'Canva Pro', icon: 'fas fa-palette' }
+];
+
+let activeTab = 'accounts';
+let currentFilter = 'all';
+let gamesData = [];
+let accountsData = [];
+
+function checkPass() {
+    if(document.getElementById('admin-pass').value === 'admin123') {
+        document.getElementById('login-overlay').style.display = 'none';
+        document.getElementById('admin-main').style.display = 'flex';
+        initAdmin();
+    } else { alert('Wrong Password'); }
+}
+
+function initAdmin() {
+    loadAll();
+}
+
+function setTab(tab) {
+    activeTab = tab;
+    document.querySelectorAll('.tab-content').forEach(t => t.style.display = 'none');
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    
+    if(tab === 'free-games') {
+        document.getElementById('tab-complex-games').style.display = 'block';
+        document.getElementById('nav-free-games').classList.add('active');
+        document.getElementById('game-tab-title').textContent = 'Add Free Game';
+        loadGames();
+    } else if(tab === 'android') {
+        document.getElementById('tab-android').style.display = 'block';
+        document.getElementById('nav-android').classList.add('active');
+        loadAndroidApps();
+    } else if(tab === 'premium') {
+        document.getElementById('tab-premium').style.display = 'block';
+        document.getElementById('nav-premium').classList.add('active');
+        loadPremium();
+    } else if(tab === 'accounts') {
+        document.getElementById('tab-accounts').style.display = 'block';
+        document.getElementById('nav-accounts').classList.add('active');
+        loadAccounts();
+    }
+}
+
+async function loadAll() { loadGames(); loadAndroidApps(); loadPremium(); loadAccounts(); }
+
+async function loadGames() {
+    const res = await fetch('/api/games');
+    gamesData = await res.json();
+    
+    console.log("Games Data Received:", gamesData);
+    let filtered = gamesData.filter(g => g.platform === 'demo');
+    
+    document.getElementById('games-table').innerHTML = filtered.map(g => `
+        <tr>
+            <td>${g.id}</td>
+            <td><img src="${g.img}" class="item-img"></td>
+            <td><strong>${g.title}</strong></td>
+            <td>${g.year}</td>
+            <td class="actions">
+                <button class="act-btn edit-btn" onclick="editGame(${g.id})"><i class="fas fa-edit"></i></button>
+                <button class="act-btn del-btn" onclick="deleteGame(${g.id})"><i class="fas fa-trash"></i></button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+async function saveGame(e) {
+    e.preventDefault();
+    const id = document.getElementById('g-id').value;
+    const game = {
+        title: document.getElementById('g-title').value,
+        platform: 'demo',
+        genre: Array.from(document.querySelectorAll('#g-genre-grid input:checked')).map(cb => cb.value),
+        year: parseInt(document.getElementById('g-year').value),
+        rating: parseFloat(document.getElementById('g-rating').value),
+        dl: document.getElementById('g-dl').value,
+        img: document.getElementById('g-img').value,
+        hero: document.getElementById('g-hero').value,
+        hero2: document.getElementById('g-hero2').value,
+        hero3: document.getElementById('g-hero3').value,
+        link: document.getElementById('g-link').value,
+        desc: document.getElementById('g-desc').value,
+        req: {
+            os: document.getElementById('r-os').value,
+            cpu: document.getElementById('r-cpu').value,
+            ram: document.getElementById('r-ram').value,
+            gpu: document.getElementById('r-gpu').value,
+            str: document.getElementById('r-str').value
+        }
+    };
+    const method = id ? 'PUT' : 'POST';
+    const url = id ? `/api/games/${id}` : '/api/games';
+    try {
+        const response = await fetch(url, { method, headers: {'Content-Type':'application/json'}, body: JSON.stringify(game)});
+        const result = await response.json();
+        if(result.success) {
+            alert("Game Saved Successfully!");
+            document.getElementById('game-form').reset();
+            document.getElementById('g-id').value = '';
+            loadGames();
+        } else {
+            alert("Error: " + result.error);
+        }
+    } catch (err) {
+        alert("System Error: " + err.message);
+    }
+}
+
+function editGame(id) {
+    const g = gamesData.find(x => x.id === id);
+    if(!g) return;
+    document.getElementById('g-id').value = g.id;
+    document.getElementById('g-title').value = g.title;
+    document.querySelectorAll('#g-genre-grid input').forEach(cb => cb.checked = g.genre.includes(cb.value));
+    document.getElementById('g-year').value = g.year;
+    document.getElementById('g-rating').value = g.rating;
+    document.getElementById('g-dl').value = g.dl;
+    document.getElementById('g-img').value = g.img;
+    document.getElementById('g-hero').value = g.hero;
+    document.getElementById('g-hero2').value = g.hero2 || '';
+    document.getElementById('g-hero3').value = g.hero3 || '';
+    document.getElementById('g-link').value = g.link;
+    document.getElementById('g-desc').value = g.desc;
+    if(g.req) {
+        document.getElementById('r-os').value = g.req.os;
+        document.getElementById('r-cpu').value = g.req.cpu;
+        document.getElementById('r-ram').value = g.req.ram;
+        document.getElementById('r-gpu').value = g.req.gpu;
+        document.getElementById('r-str').value = g.req.str;
+    }
+    window.scrollTo(0,0);
+}
+
+async function deleteGame(id) {
+    if(!confirm("Delete?")) return;
+    await fetch('/api/games/'+id, {method:'DELETE'});
+    loadGames();
+}
+
+// Android Apps
+async function loadAndroidApps() {
+    const res = await fetch('/api/games');
+    const all = await res.json();
+    const android = all.filter(g => g.platform === 'android');
+    document.getElementById('android-table').innerHTML = android.map(g => `
+        <tr>
+            <td>${g.id}</td>
+            <td><img src="${g.img}" class="item-img"></td>
+            <td><strong>${g.title}</strong></td>
+            <td class="actions">
+                <button class="act-btn edit-btn" onclick="editAndroidApp(${g.id})"><i class="fas fa-edit"></i></button>
+                <button class="act-btn del-btn" onclick="deleteGame(${g.id})"><i class="fas fa-trash"></i></button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+async function saveAndroidApp(e) {
+    e.preventDefault();
+    const id = document.getElementById('an-id').value;
+    const app = {
+        title: document.getElementById('an-title').value,
+        platform: 'android',
+        img: document.getElementById('an-img').value,
+        hero: document.getElementById('an-hero').value,
+        hero2: document.getElementById('an-hero2').value,
+        link: document.getElementById('an-link').value,
+        desc: document.getElementById('an-desc').value,
+        genre: ['Android'],
+        year: new Date().getFullYear(),
+        rating: 4.5,
+        dl: '0.1M'
+    };
+    const method = id ? 'PUT' : 'POST';
+    const url = id ? `/api/games/${id}` : '/api/games';
+    const res = await fetch(url, { method, headers: {'Content-Type':'application/json'}, body: JSON.stringify(app)});
+    const result = await res.json();
+    if(result.success) {
+        alert("Android App Saved!");
+        document.getElementById('android-form').reset();
+        document.getElementById('an-id').value = '';
+        loadAndroidApps();
+    }
+}
+
+async function editAndroidApp(id) {
+    const res = await fetch('/api/games');
+    const all = await res.json();
+    const g = all.find(x => x.id === id);
+    if(!g) return;
+    document.getElementById('an-id').value = g.id;
+    document.getElementById('an-title').value = g.title;
+    document.getElementById('an-img').value = g.img;
+    document.getElementById('an-hero').value = g.hero;
+    document.getElementById('an-hero2').value = g.hero2 || '';
+    document.getElementById('an-link').value = g.link;
+    document.getElementById('an-desc').value = g.desc;
+    document.getElementById('android-tab-title').textContent = "Edit Android App: " + g.title;
+    document.getElementById('an-submit-btn').textContent = "Update App";
+    window.scrollTo(0,0);
+}
+
+// Premium Accounts
+async function loadPremium() {
+    const res = await fetch('/api/premium');
+    const data = await res.json();
+    document.getElementById('premium-table').innerHTML = data.map(p => `
+        <tr>
+            <td><img src="${p.img}" class="item-img"></td>
+            <td><span class="badge b-new">${p.category.toUpperCase()}</span></td>
+            <td><strong>${p.title}</strong></td>
+            <td><code>${p.user}</code></td>
+            <td class="actions">
+                <button class="act-btn edit-btn" onclick="editPremium(${p.id})"><i class="fas fa-edit"></i></button>
+                <button class="act-btn del-btn" onclick="deletePremium(${p.id})"><i class="fas fa-trash"></i></button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+async function savePremium(e) {
+    e.preventDefault();
+    const id = document.getElementById('p-id').value;
+    const item = {
+        category: document.getElementById('p-category').value,
+        title: document.getElementById('p-title').value,
+        img: document.getElementById('p-img').value,
+        hero: document.getElementById('p-hero').value,
+        user: document.getElementById('p-user').value,
+        pass: document.getElementById('p-pass').value,
+        desc: document.getElementById('p-desc').value
+    };
+    const method = id ? 'PUT' : 'POST';
+    const url = id ? `/api/premium/${id}` : '/api/premium';
+    const res = await fetch(url, { method, headers: {'Content-Type':'application/json'}, body: JSON.stringify(item)});
+    const result = await res.json();
+    if(result.success) {
+        alert("Premium Account Saved!");
+        document.getElementById('premium-form').reset();
+        document.getElementById('p-id').value = '';
+        loadPremium();
+    }
+}
+
+async function editPremium(id) {
+    const res = await fetch('/api/premium');
+    const all = await res.json();
+    const p = all.find(x => x.id == id);
+    if(!p) return;
+    document.getElementById('p-id').value = p.id;
+    document.getElementById('p-category').value = p.category;
+    document.getElementById('p-title').value = p.title;
+    document.getElementById('p-img').value = p.img;
+    document.getElementById('p-hero').value = p.hero;
+    document.getElementById('p-user').value = p.user;
+    document.getElementById('p-pass').value = p.pass;
+    document.getElementById('p-desc').value = p.desc || '';
+    document.getElementById('premium-tab-title').textContent = "Edit Premium: " + p.title;
+    document.getElementById('p-submit-btn').textContent = "Update Account";
+    window.scrollTo(0,0);
+}
+
+async function deletePremium(id) {
+    if(!confirm("Delete?")) return;
+    await fetch('/api/premium/'+id, {method:'DELETE'});
+    loadPremium();
+}
+
+// Accounts
+async function loadAccounts() {
+    const res = await fetch('/api/bot-accounts');
+    accountsData = await res.json();
+    renderAccounts();
+}
+
+function renderAccounts() {
+    const filtered = currentFilter === 'all' ? accountsData : accountsData.filter(a => a.category === currentFilter);
+    document.getElementById('acc-table').innerHTML = filtered.map(a => `
+        <tr>
+            <td><img src="${a.imgUrl}" class="item-img"></td>
+            <td><strong>${a.gameName}</strong></td>
+            <td><code>${a.steamUser}</code></td>
+            <td><code>${a.steamPass}</code></td>
+            <td class="actions">
+                <button class="act-btn edit-btn" onclick="editAcc('${a._id}')"><i class="fas fa-edit"></i></button>
+                <button class="act-btn del-btn" onclick="deleteAcc('${a._id}')"><i class="fas fa-trash"></i></button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+async function saveAccount(e) {
+    e.preventDefault();
+    const id = document.getElementById('a-id').value;
+    const data = {
+        category: 'bot',
+        gameName: document.getElementById('a-name').value,
+        imgUrl: document.getElementById('a-img').value,
+        steamUser: document.getElementById('a-user').value,
+        steamPass: document.getElementById('a-pass').value
+    };
+    const method = id ? 'PUT' : 'POST';
+    const url = id ? `/api/bot-accounts/${id}` : '/api/bot-accounts';
+    await fetch(url, { method, headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)});
+    document.getElementById('acc-form').reset();
+    document.getElementById('a-id').value = '';
+    loadAccounts();
+}
+
+function editAcc(id) {
+    const a = accountsData.find(x => x._id === id);
+    if(!a) return;
+    document.getElementById('a-id').value = a._id;
+    document.getElementById('a-name').value = a.gameName;
+    document.getElementById('a-img').value = a.imgUrl;
+    document.getElementById('a-user').value = a.steamUser;
+    document.getElementById('a-pass').value = a.steamPass;
+}
+
+async function deleteAcc(id) {
+    if(!confirm("Delete?")) return;
+    await fetch('/api/bot-accounts/'+id, {method:'DELETE'});
+    loadAccounts();
+}
+
+// Settings & Ads
+async function loadSettings() {
+    const res = await fetch('/api/settings');
+    const s = await res.json();
+    if(s) {
+        document.getElementById('s-hero1').value = s.heroLine1;
+        document.getElementById('s-hero2').value = s.heroLine2;
+        document.getElementById('s-hero3').value = s.heroLine3;
+        document.getElementById('s-herosub').value = s.heroSub;
+        document.getElementById('s-about').value = s.aboutText;
+    }
+}
+async function saveSettings(e) {
+    e.preventDefault();
+    const data = {
+        heroLine1: document.getElementById('s-hero1').value,
+        heroLine2: document.getElementById('s-hero2').value,
+        heroLine3: document.getElementById('s-hero3').value,
+        heroSub: document.getElementById('s-herosub').value,
+        aboutText: document.getElementById('s-about').value
+    };
+    await fetch('/api/settings', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)});
+    alert("Saved");
+}
+async function loadAds() {
+    const res = await fetch('/api/ads');
+    const a = await res.json();
+    if(a) {
+        document.getElementById('ad-on').checked = a.rightAdEnabled;
+        document.getElementById('ad-img').value = a.rightAdImage;
+        document.getElementById('ad-link').value = a.rightAdLink;
+    }
+}
+async function saveAds(e) {
+    e.preventDefault();
+    const data = {
+        rightAdEnabled: document.getElementById('ad-on').checked,
+        rightAdImage: document.getElementById('ad-img').value,
+        rightAdLink: document.getElementById('ad-link').value
+    };
+    await fetch('/api/ads', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)});
+    alert("Saved");
+}
+</script>
+</body>
+</html>
